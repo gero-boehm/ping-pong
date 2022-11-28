@@ -46,9 +46,9 @@ void Display::clear(void)
 
 void Display::draw_number(uint16_t x, uint16_t y, uint16_t number, t_text_options *options)
 {
-	char buffer[3] = {'0', '0', 0};
-	int offset = number < 10;
-	itoa(number, buffer + offset, 10);
+	char buffer[3] {};
+	buffer[1] = (char) number % 10 + '0';
+	buffer[0] = (char) (number / 10) % 10 + '0';
 	// Serial.println(buffer);
 	draw_text(x, y, buffer, options);
 }

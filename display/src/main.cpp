@@ -42,8 +42,14 @@ t_status button_b = {LOW, HIGH};
 void on_tap(e_button button)
 {
 	e_side side = button == BUTTON_A ? SIDE_A : SIDE_B;
-	scoreboard->increment_score_for(side);
-	scoreboard->swap_serving_side();
+	Serial.println(button);
+	Serial.println(side);
+	Serial.println("=?====");
+	if(scoreboard->get_starting_side() == SIDE_NONE)
+		scoreboard->set_starting_side(side);
+	else
+		scoreboard->increment_score_for(side);
+	scoreboard->update_serving_side();
 	scoreboard->render();
 }
 
@@ -51,19 +57,19 @@ void on_long_press(e_button button)
 {
 	e_side side = button == BUTTON_A ? SIDE_A : SIDE_B;
 	scoreboard->decrement_score_for(side);
-	// scoreboard->swap_serving_side();
+	scoreboard->update_serving_side();
 	scoreboard->render();
 }
 
 void setup() {
 	Serial.begin(9600);
 
-	buttons = new ButtonManager(BUTTON_A_PIN, BUTTON_B_PIN);
+	buttons = ButtonManager::get_instance();
+	buttons->init(BUTTON_A_PIN, BUTTON_B_PIN);
 	buttons->on_tap(on_tap);
 	buttons->on_long_press(on_long_press);
 	
 	scoreboard = new Scoreboard();
-	// scoreboard->set_phase(INGAME);
 
 	
 
@@ -160,17 +166,22 @@ void loop() {
 	// }
 	// button_b.last = button_b.current;
 
-	e_side winner = scoreboard->get_round_winner();
+	e_side winner = scoreboard->get_match_winner();
 	if(winner != SIDE_NONE)
 	{
 		scoreboard->increment_wins_for(winner);
-		scoreboard->reset_points();
+		if(scoreboard->get_game_winner() == SIDE_NONE)
+		{
+			delay(3500);
+			scoreboard->reset_points();
+		}
 		scoreboard->render();
 	}
 
 	winner = scoreboard->get_game_winner();
 	if(winner != SIDE_NONE)
 	{
+		delay(10000);
 		scoreboard->full_reset();
 		scoreboard->render();
 	}

@@ -20,7 +20,7 @@ Scoreboard::Scoreboard(void)
 
 void Scoreboard::full_reset(void)
 {
-	starting_side = SIDE_A;
+	starting_side = SIDE_NONE;
 	serving_side = starting_side;
 	score.side_a = 0;
 	score.side_b = 0;
@@ -35,10 +35,14 @@ void Scoreboard::reset_points(void)
 	score.side_b = 0;
 }
 
-
-void Scoreboard::set_phase(e_phase set_phase)
+void Scoreboard::set_starting_side(e_side side)
 {
-	phase = set_phase;
+	starting_side = side;
+}
+
+e_side Scoreboard::get_starting_side(void)
+{
+	return starting_side;
 }
 
 void Scoreboard::increment_score_for(e_side side)
@@ -75,10 +79,14 @@ void Scoreboard::decrement_wins_for(e_side side)
 {
 	if(side == SIDE_A)
 	{
-		wins.side_a--;
+		if(wins.side_a > 0)
+			wins.side_a--;
 	}
 	else
-		wins.side_b--;
+	{
+		if(wins.side_b > 0)
+			wins.side_b--;
+	}
 }
 
 void Scoreboard::render(void)
@@ -93,21 +101,21 @@ void Scoreboard::render(void)
 	display->draw_text(sx + 22, sy, ":", &text_options);
 	display->draw_number(sx + 32, sy, score.side_b, &text_options);
 
-	draw_serving_side();
-	draw_wins();
-
-	// if(phase == INGAME_RUSH)
-	// {
-	// 	t_rect_options rect_options = {COLOR_RED, 255};
-	// 	display->fill_rect(0, 0, 3, &rect_options);
-	// }
+	if(get_starting_side() != SIDE_NONE)
+	{
+		draw_serving_side();
+		draw_wins();
+	}
 }
 
-void Scoreboard::swap_serving_side(void)
+void Scoreboard::update_serving_side()
 {
-	if((score.side_a + score.side_b) % 2 == 1)
-		return;
-	serving_side = serving_side == SIDE_A ? SIDE_B : SIDE_A;
+	bool toggle;
+	uint16_t sum = score.side_a + score.side_b;
+	if (sum < 20)
+		serving_side = (sum / 2) % 2 == 0 ? starting_side : starting_side == SIDE_A ? SIDE_B : SIDE_A;
+	else
+		serving_side = sum % 2 == 0 ? starting_side : starting_side == SIDE_A ? SIDE_B : SIDE_A;
 }
 
 void Scoreboard::draw_serving_side(void)
@@ -134,7 +142,7 @@ void Scoreboard::draw_wins(void)
 	}
 }
 
-e_side Scoreboard::get_round_winner(void)
+e_side Scoreboard::get_match_winner(void)
 {
 	int difference = static_cast<int>(score.side_a) - static_cast<int>(score.side_b);
 

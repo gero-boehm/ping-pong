@@ -40,7 +40,7 @@ void setup() {
 
 	WiFi.mode(WIFI_STA);
 
-	if (esp_now_init() != ESP_OK) {
+	if(esp_now_init() != ESP_OK) {
 		Serial.println("Error initializing ESP-NOW");
 		return;
 	}
@@ -52,7 +52,7 @@ void setup() {
 	peerInfo.encrypt = false;
 	// register first peer  
 	memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-	if (esp_now_add_peer(&peerInfo) != ESP_OK){
+	if(esp_now_add_peer(&peerInfo) != ESP_OK){
 		Serial.println("Failed to add peer");
 		return;
 	}

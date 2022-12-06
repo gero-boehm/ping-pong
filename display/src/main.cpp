@@ -61,6 +61,13 @@ void on_long_press(e_button button)
 	scoreboard->render();
 }
 
+void on_reset(void)
+{
+	scoreboard->full_reset();
+	scoreboard->set_starting_side(SIDE_NONE);
+	scoreboard->render();
+}
+
 void setup() {
 	Serial.begin(9600);
 
@@ -68,12 +75,11 @@ void setup() {
 	buttons->init(BUTTON_A_PIN, BUTTON_B_PIN);
 	buttons->on_tap(on_tap);
 	buttons->on_long_press(on_long_press);
+	buttons->on_reset(on_reset);
 	
 	scoreboard = new Scoreboard();
 
 	
-
-
 	// // Module configuration
 	// HUB75_I2S_CFG mxconfig(
 	// 	PANEL_RES_X,   // module width
@@ -170,10 +176,12 @@ void loop() {
 	if(winner != SIDE_NONE)
 	{
 		scoreboard->increment_wins_for(winner);
+		scoreboard->render();
 		if(scoreboard->get_game_winner() == SIDE_NONE)
 		{
 			delay(3500);
 			scoreboard->reset_points();
+			scoreboard->swap_wins();
 		}
 		scoreboard->render();
 	}

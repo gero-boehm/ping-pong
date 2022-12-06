@@ -27,6 +27,7 @@ class Scoreboard
 		void decrement_score_for(e_side side);
 		void increment_wins_for(e_side side);
 		void decrement_wins_for(e_side side);
+		void swap_wins(void);
 		void update_serving_side(void);
 		e_side get_match_winner(void);
 		e_side get_game_winner(void);

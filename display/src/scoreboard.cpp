@@ -89,6 +89,14 @@ void Scoreboard::decrement_wins_for(e_side side)
 	}
 }
 
+void Scoreboard::swap_wins(void)
+{
+	uint16_t tmp = wins.side_a;
+
+	wins.side_a = wins.side_b;
+	wins.side_b = tmp;
+}
+
 void Scoreboard::render(void)
 {
 	uint16_t sx = 5;

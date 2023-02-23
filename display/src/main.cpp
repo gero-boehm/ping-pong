@@ -4,9 +4,10 @@
 // on a 64x32 LED matrix
 //
 
+#include "game.h"
 #include "scoreboard.h"
-#include "button_manager.h"
 #include "display.h"
+#include "button_manager.h"
 
 #define BUTTON_A_PIN 19
 #define BUTTON_B_PIN 18
@@ -27,57 +28,55 @@
 // uint16_t myGREEN = dma_display->color565(0, 255, 0);
 // uint16_t myBLUE = dma_display->color565(0, 0, 255);
 
-Scoreboard *scoreboard = nullptr;
-Display *display = nullptr;
-ButtonManager *buttons = nullptr;
+Game *game = nullptr;
+ButtonManager *button_manager = nullptr;
 
-typedef struct {
-	bool current;
-	bool last;
-} t_status;
+// void on_tap(e_button button)
+// {
+// 	e_side side = button == BUTTON_A ? SIDE_A : SIDE_B;
+// 	// Serial.println(button);
+// 	// Serial.println(side);
+// 	// Serial.println("=?====");
+// 	if(game->get_starting_side() == SIDE_NONE)
+// 		game->set_starting_side(side);
+// 	else
+// 		game->increment_score_for(side);
+// 	game->update_serving_side();
+// 	scoreboard->render();
+// }
 
-t_status button_a = {LOW, HIGH};
-t_status button_b = {LOW, HIGH};
+// void on_long_press(e_button button)
+// {
+// 	e_side side = button == BUTTON_A ? SIDE_A : SIDE_B;
+// 	game->decrement_score_for(side);
+// 	game->update_serving_side();
+// 	scoreboard->render();
+// }
 
-void on_tap(e_button button)
-{
-	e_side side = button == BUTTON_A ? SIDE_A : SIDE_B;
-	Serial.println(button);
-	Serial.println(side);
-	Serial.println("=?====");
-	if(scoreboard->get_starting_side() == SIDE_NONE)
-		scoreboard->set_starting_side(side);
-	else
-		scoreboard->increment_score_for(side);
-	scoreboard->update_serving_side();
-	scoreboard->render();
-}
-
-void on_long_press(e_button button)
-{
-	e_side side = button == BUTTON_A ? SIDE_A : SIDE_B;
-	scoreboard->decrement_score_for(side);
-	scoreboard->update_serving_side();
-	scoreboard->render();
-}
-
-void on_reset(void)
-{
-	scoreboard->full_reset();
-	scoreboard->set_starting_side(SIDE_NONE);
-	scoreboard->render();
-}
+// void on_reset(void)
+// {
+// 	game->reset();
+// 	game->set_starting_side(SIDE_NONE);
+// 	scoreboard->render();
+// }
 
 void setup() {
 	Serial.begin(9600);
 
-	buttons = ButtonManager::get_instance();
-	buttons->init(BUTTON_A_PIN, BUTTON_B_PIN);
-	buttons->on_tap(on_tap);
-	buttons->on_long_press(on_long_press);
-	buttons->on_reset(on_reset);
+	button_manager = ButtonManager::get_instance();
+	button_manager->init(BUTTON_A_PIN, BUTTON_B_PIN);
+
+	game = Game::get_instance();
+	game->reset();
+	game->render();
 	
-	scoreboard = new Scoreboard();
+	// buttons = ButtonManager::get_instance();
+	// buttons->init(BUTTON_A_PIN, BUTTON_B_PIN);
+	// buttons->on_tap(on_tap);
+	// buttons->on_long_press(on_long_press);
+	// buttons->on_reset(on_reset);
+	
+	// scoreboard = new Scoreboard();
 
 	
 	// // Module configuration
@@ -152,7 +151,8 @@ void setup() {
 
 void loop() {
 
-	buttons->loop();
+	button_manager->loop();
+	game->loop();
 
 	// button_a.current = digitalRead(BUTTON_A_PIN);
 	// if(button_a.current == HIGH && button_a.last == LOW)
@@ -172,27 +172,27 @@ void loop() {
 	// }
 	// button_b.last = button_b.current;
 
-	e_side winner = scoreboard->get_match_winner();
-	if(winner != SIDE_NONE)
-	{
-		scoreboard->increment_wins_for(winner);
-		scoreboard->render();
-		if(scoreboard->get_game_winner() == SIDE_NONE)
-		{
-			delay(3500);
-			scoreboard->reset_points();
-			scoreboard->swap_wins();
-		}
-		scoreboard->render();
-	}
+	// e_side winner = scoreboard->get_match_winner();
+	// if(winner != SIDE_NONE)
+	// {
+	// 	scoreboard->increment_wins_for(winner);
+	// 	scoreboard->render();
+	// 	if(scoreboard->get_game_winner() == SIDE_NONE)
+	// 	{
+	// 		delay(3500);
+	// 		scoreboard->reset_points();
+	// 		scoreboard->swap_wins();
+	// 	}
+	// 	scoreboard->render();
+	// }
 
-	winner = scoreboard->get_game_winner();
-	if(winner != SIDE_NONE)
-	{
-		delay(10000);
-		scoreboard->full_reset();
-		scoreboard->render();
-	}
+	// winner = scoreboard->get_game_winner();
+	// if(winner != SIDE_NONE)
+	// {
+	// 	delay(10000);
+	// 	scoreboard->full_reset();
+	// 	scoreboard->render();
+	// }
 
 
 

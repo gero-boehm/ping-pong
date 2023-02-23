@@ -2,9 +2,10 @@
 #include <WiFi.h>
 #include <esp_now.h>
 #include "button_manager.h"
+#include "game.h"
 
-t_transmission transmission;
 ButtonManager *ButtonManager::instance = nullptr;
+t_transmission transmission;
 
 void on_data_received(const uint8_t *mac, const uint8_t *payload, int len)
 {
@@ -34,21 +35,6 @@ void ButtonManager::init(uint8_t pin_a, uint8_t pin_b)
 	esp_now_register_recv_cb(on_data_received);
 }
 
-void ButtonManager::on_tap(void (*callback)(e_button))
-{
-	callback_on_tap = callback;
-}
-
-void ButtonManager::on_long_press(void (*callback)(e_button))
-{
-	callback_long_press = callback;
-}
-
-void ButtonManager::on_reset(void (*callback)(void))
-{
-	callback_reset = callback;
-}
-
 void ButtonManager::on_transmission_received(t_transmission *transmission)
 {
 	if(transmission->id == 0)
@@ -59,31 +45,84 @@ void ButtonManager::on_transmission_received(t_transmission *transmission)
 
 void ButtonManager::process_transmission(t_transmission *transmission, t_button *button)
 {
+	Game *game = Game::get_instance();
+
+	if(game->get_phase() != INGAME && game->get_phase() != SCREENSAVER)
+		return;
+
+	if(game->get_phase() == INGAME)
+		game->reset_ticks();
+
+	e_side side = get_side_for(button);
+
+	Serial.printf("button pressed: %d\n", transmission->counter);
+
 	button->pressed_for = transmission->counter;
 	if(button->pressed_for > 0)
 		button->is_tap = true;
-	if(button->pressed_for > 20)
+	if(button->pressed_for > 50)
 		button->is_tap = false;
-	if(!button->long_press_triggered && button->pressed_for > 50)
+	if(!button->long_press_triggered && button->pressed_for > 75)
 	{
 		button->long_press_triggered = true;
-		callback_long_press(button->type);
+		game->decrement_score_for(side);
+		game->update_serving_side();
+		game->render();
 	}
-	if(!button->reset_triggered && button->pressed_for > 100)
+	if(!button->reset_triggered && button->pressed_for > 150)
 	{
 		button->reset_triggered = true;
-		callback_reset();
+		game->reset();
+		game->render();
 	}
 	button->time_since_last_press = 0;
 }
 
 void ButtonManager::check_end_transmission(t_button *button)
 {
+	Game *game = Game::get_instance();
+	e_side side = get_side_for(button);
+
 	button->time_since_last_press++;
-	if(button->time_since_last_press != 50000)
+	if(button->time_since_last_press < 50000)
 		return;
 	if(button->is_tap)
-		callback_on_tap(button->type);
+	{
+		button->is_tap = false;
+
+		if(game->get_phase() == SCREENSAVER)
+		{
+			game->reset();
+			game->render();
+			return;
+		}
+		// Serial.printf("is tap %d %d %d\n", side == SIDE_NONE, side == SIDE_A, side == SIDE_B);
+		if(game->get_serving_side() == SIDE_NONE)
+			game->set_starting_side(side);
+		else
+			game->increment_score_for(side);
+		game->update_serving_side();
+
+		e_side match_winner = game->get_match_winner();
+
+		if(match_winner != SIDE_NONE)
+		{
+			game->increment_wins_for(match_winner);
+			game->render();
+		}
+
+		e_side game_winner = game->get_game_winner();
+
+		// Serial.printf("match_winner %d %d %d\n", match_winner == SIDE_NONE, match_winner == SIDE_A, match_winner == SIDE_B);
+		// Serial.printf("game_winner %d %d %d\n", game_winner == SIDE_NONE, game_winner == SIDE_A, game_winner == SIDE_B);
+
+		if(game_winner != SIDE_NONE)
+			game->set_phase(GAME_ENDED);
+		else if(match_winner != SIDE_NONE)
+			game->set_phase(MATCH_ENDED);
+
+		game->render();
+	}
 	button->long_press_triggered = false;
 	button->reset_triggered = false;
 }
@@ -94,10 +133,7 @@ void ButtonManager::loop(void)
 	check_end_transmission(&button_b);
 }
 
-void ButtonManager::check_for_button_tap(t_button *button)
+e_side ButtonManager::get_side_for(t_button *button)
 {
-	if(button->pressed_for == 0)
-		callback_on_tap(button->type);
-	if(button->pressed_for == 200)
-		callback_long_press(button->type);
+	return button->type == BUTTON_A ? SIDE_A : SIDE_B;
 }

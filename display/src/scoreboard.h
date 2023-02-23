@@ -1,48 +1,38 @@
 #ifndef SCOREBOARD_H
 # define SCOREBOARD_H
 
-# include <stdint.h>
+# include "definitions.h"
 # include "display.h"
-
-enum e_side {SIDE_NONE, SIDE_A, SIDE_B};
-// enum e_phase {PRE_GAME, INGAME, INGAME_RUSH, MATCH_ENDED, GAME_ENDED};
-
-typedef struct
-{
-	uint16_t side_a;
-	uint16_t side_b;
-
-}	t_score;
 
 class Scoreboard
 {
 	public:
 		Scoreboard(void);
 
-		void full_reset(void);
-		void reset_points(void);
-		void set_starting_side(e_side side);
-		e_side get_starting_side(void);
-		void increment_score_for(e_side side);
-		void decrement_score_for(e_side side);
-		void increment_wins_for(e_side side);
-		void decrement_wins_for(e_side side);
-		void swap_wins(void);
-		void update_serving_side(void);
-		e_side get_match_winner(void);
-		e_side get_game_winner(void);
+		static Scoreboard *instance;
+		Scoreboard(const Scoreboard& obj) = delete;
 
-		void render(void);
+		static Scoreboard *get_instance()
+		{
+			if(instance)
+				return instance;
+			instance = new Scoreboard();
+			return instance;
+		}
+
+		void clear(void);
+		void draw_score(t_score score);
+		void draw_wins_dots(t_score wins);
+		void draw_wins(t_score wins, e_side side, float tick);
+		void draw_serving_indicator(t_serve serve);
+
+		void draw_match_won(e_side side);
+		void draw_game_won(e_side side);
+		void draw_screensaver();
 
 	private:
 		Display *display;
-		e_side starting_side;
-		e_side serving_side;
-		t_score score;
-		t_score wins;
-
-		void draw_serving_side(void);
-		void draw_wins(void);
+		t_screensaver screensaver;
 
 };
 

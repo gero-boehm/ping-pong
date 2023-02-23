@@ -1,72 +1,86 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <esp_now.h>
+#include "driver/rtc_io.h"
 
-#define input 23
-
-int status;
-int last = HIGH;
-
-// REPLACE WITH YOUR ESP RECEIVER'S MAC ADDRESS
-uint8_t broadcastAddress[] = {0xC8, 0xC9, 0xA3, 0xD1, 0x3A, 0x58};
+#define BUTTON GPIO_NUM_12
 
 typedef struct {
-	uint8_t type;
-	unsigned long long pressed_for;
+	uint8_t id;
+	uint32_t counter;
 } t_transmission;
 
-t_transmission transmission = {1, 0};
+uint8_t master_address[] = {0xC8, 0xC9, 0xA3, 0xD1, 0x3A, 0x58};
+esp_now_peer_info_t peer;
 
-esp_now_peer_info_t peerInfo;
+t_transmission transmission = {1, 0};
+uint8_t is_high;
+uint8_t can_send = 1;
+uint32_t tick = 0;
 
 // callback when data is sent
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-	char macStr[18];
-	Serial.print("Packet to: ");
-	// Copies the sender mac address to a string
-	snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
-					 mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-	Serial.print(macStr);
-	Serial.print(" send status:\t");
-	Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+void on_data_sent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+	is_high = 0;
+	can_send = 1;
 }
  
 void setup() {
-	Serial.begin(9600);
-	
 	setCpuFrequencyMhz(80);
 
-	pinMode(input, INPUT_PULLUP);
+	Serial.begin(9600);
+
+	pinMode(BUTTON, INPUT_PULLUP);
 
 	WiFi.mode(WIFI_STA);
-
-	if(esp_now_init() != ESP_OK) {
+ 
+	if (esp_now_init() != ESP_OK)
+	{
 		Serial.println("Error initializing ESP-NOW");
-		return;
+		while(1);
 	}
 	
-	esp_now_register_send_cb(OnDataSent);
-	 
-	// register peer
-	peerInfo.channel = 0;  
-	peerInfo.encrypt = false;
-	// register first peer  
-	memcpy(peerInfo.peer_addr, broadcastAddress, 6);
-	if(esp_now_add_peer(&peerInfo) != ESP_OK){
+	esp_now_register_send_cb(on_data_sent);
+
+	peer.channel = 0;  
+	peer.encrypt = false;
+	memcpy(peer.peer_addr, master_address, 6);
+
+	if (esp_now_add_peer(&peer) != ESP_OK)
+	{
 		Serial.println("Failed to add peer");
-		return;
+		while(1);
 	}
 }
 
-void loop() {
-	status = digitalRead(input);
-	if(status == LOW){
+void loop()
+{
+	if(!digitalRead(BUTTON))
+		is_high = 1;
+
+	if (is_high)
+	{
+		tick = 0;
+
+		if (can_send)
+		{
+			transmission.counter++;
 			esp_now_send(0, (uint8_t *) &transmission, sizeof(t_transmission));
-			transmission.pressed_for += 1;
-			delay(10);
+			can_send = 0;
+		}
 	}
-	if(status == HIGH)
-		transmission.pressed_for = 0;
-	// if(status == HIGH && last == LOW)
-	//   esp_now_send(0, (uint8_t *) &test, sizeof(test_struct));
+	else if(transmission.counter)
+	{
+		transmission.counter = 0;
+	}
+
+	// wait around 3 minutes to go to sleep. (100000 ticks equals roughly 3 seconds)
+	if(tick == 100000 * 60)
+	{
+		Serial.println("deep_sleep");
+		rtc_gpio_pullup_en(BUTTON);
+		esp_sleep_enable_ext0_wakeup(BUTTON, LOW);
+		esp_deep_sleep_start();
+	}
+
+	tick++;
 }

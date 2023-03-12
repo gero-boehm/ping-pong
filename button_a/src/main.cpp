@@ -18,14 +18,15 @@ e_side side = SIDE_A;
 uint8_t master_address[] = {0xC8, 0xC9, 0xA3, 0xD1, 0x3A, 0x58};
 esp_now_peer_info_t peer;
 
-uint8_t last;
 uint32_t tick = 0;
-uint32_t pressed = 0;
+uint32_t debounce = 0;
+uint32_t pressed_for = 0;
+bool is_pressed = false;
 bool can_send = true;
 
 // callback when data is sent
 void on_data_sent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-	can_send = 1;
+	can_send = true;
 }
 
 void send(e_action action)
@@ -34,33 +35,6 @@ void send(e_action action)
 
 	can_send = false;
 	esp_now_send(0, (uint8_t *) &transmission, sizeof(t_transmission));
-}
-
-void process_signal(uint8_t signal)
-{
-	if(signal)
-	{
-		tick = 0;
-		pressed++;
-	}
-
-	if(!can_send)
-		return;
-
-	if(pressed == 60000)
-		send(ACTION_LONG);
-	else if(pressed == 100000)
-		send(ACTION_RESET);
-
-	if(signal == LOW && last == HIGH)
-	{
-		if(pressed > 1000 && pressed < 10000)
-			send(ACTION_TAP);
-
-		pressed = 0;
-	}
-
-	last = signal;
 }
 
 void setup() {
@@ -95,9 +69,38 @@ void setup() {
 
 void loop()
 {
+	if(is_pressed)
+	{
+		pressed_for++;
+		debounce++;
+		tick = 0;
+	}
+
 	uint8_t signal = !digitalRead(BUTTON);
 
-	process_signal(signal);
+	if(signal)
+	{
+		if(is_pressed == false)
+			Serial.println("start");
+		is_pressed = true;
+		debounce = 0;
+	}
+
+	if(debounce >= 5000)
+	{
+		if(pressed_for > 1000 && pressed_for < 15000)
+			send(ACTION_TAP);
+		Serial.printf("pressed_for %d\n", pressed_for);
+		is_pressed = false;
+		pressed_for = 0;
+		debounce = 0;
+	}
+
+	if(pressed_for == 50000)
+		send(ACTION_LONG);
+	else if(pressed_for == 100000)
+		send(ACTION_RESET);
+
 
 	// wait around 3 minutes to go to sleep. (100000 ticks equals roughly 3 seconds)
 	if(tick == 100000 * 60)

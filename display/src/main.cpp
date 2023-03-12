@@ -64,7 +64,7 @@ void setup() {
 	Serial.begin(9600);
 
 	button_manager = ButtonManager::get_instance();
-	button_manager->init(BUTTON_A_PIN, BUTTON_B_PIN);
+	button_manager->init();
 
 	game = Game::get_instance();
 	game->reset();
@@ -151,7 +151,6 @@ void setup() {
 
 void loop() {
 
-	button_manager->loop();
 	game->loop();
 
 	// button_a.current = digitalRead(BUTTON_A_PIN);

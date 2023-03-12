@@ -108,6 +108,6 @@ void Scoreboard::draw_screensaver() {
 	screensaver.x += screensaver.vx;
 	screensaver.y += screensaver.vy;	
 	
-	t_rect_options rect_options = {colors[screensaver.color_index % 7]};
+	t_rect_options rect_options = {colors[screensaver.color_index % 6]};
 	display->fill_rect(screensaver.x, screensaver.y, 2, 2, &rect_options);
 }

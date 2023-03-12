@@ -5,29 +5,70 @@
 
 #define BUTTON GPIO_NUM_12
 
+enum e_side {SIDE_NONE, SIDE_A, SIDE_B};
+enum e_action {ACTION_TAP, ACTION_LONG, ACTION_RESET};
+
 typedef struct {
-	uint8_t id;
-	uint32_t counter;
+	e_side side;
+	e_action action;
 } t_transmission;
+
+e_side side = SIDE_B;
 
 uint8_t master_address[] = {0xC8, 0xC9, 0xA3, 0xD1, 0x3A, 0x58};
 esp_now_peer_info_t peer;
 
-t_transmission transmission = {1, 0};
-uint8_t is_high;
-uint8_t can_send = 1;
+uint8_t last;
 uint32_t tick = 0;
+uint32_t pressed = 0;
+bool can_send = true;
 
 // callback when data is sent
 void on_data_sent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-	is_high = 0;
 	can_send = 1;
 }
- 
+
+void send(e_action action)
+{
+	t_transmission transmission = {side, action};
+
+	can_send = false;
+	esp_now_send(0, (uint8_t *) &transmission, sizeof(t_transmission));
+}
+
+void process_signal(uint8_t signal)
+{
+	if(signal)
+	{
+		tick = 0;
+		pressed++;
+	}
+
+	if(!can_send)
+		return;
+
+	if(pressed == 60000)
+		send(ACTION_LONG);
+	else if(pressed == 100000)
+		send(ACTION_RESET);
+
+	if(signal == LOW && last == HIGH)
+	{
+		if(pressed > 1000 && pressed < 10000)
+			send(ACTION_TAP);
+
+		pressed = 0;
+	}
+
+	last = signal;
+}
+
 void setup() {
 	setCpuFrequencyMhz(80);
 
 	Serial.begin(9600);
+
+	rtc_gpio_deinit(BUTTON);
 
 	pinMode(BUTTON, INPUT_PULLUP);
 
@@ -54,24 +95,9 @@ void setup() {
 
 void loop()
 {
-	if(!digitalRead(BUTTON))
-		is_high = 1;
+	uint8_t signal = !digitalRead(BUTTON);
 
-	if (is_high)
-	{
-		tick = 0;
-
-		if (can_send)
-		{
-			transmission.counter++;
-			esp_now_send(0, (uint8_t *) &transmission, sizeof(t_transmission));
-			can_send = 0;
-		}
-	}
-	else if(transmission.counter)
-	{
-		transmission.counter = 0;
-	}
+	process_signal(signal);
 
 	// wait around 3 minutes to go to sleep. (100000 ticks equals roughly 3 seconds)
 	if(tick == 100000 * 60)
